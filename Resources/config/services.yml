@@ -1,0 +1,4 @@
+services:
+#    sn_deploy.example:
+#        class: SN\DeployBundle\Example
+#        arguments: ["@service_id", "plain_value", "%parameter%"]

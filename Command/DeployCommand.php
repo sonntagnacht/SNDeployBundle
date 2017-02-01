@@ -9,6 +9,7 @@
 namespace SN\DeployBundle\Command;
 
 
+use SN\DeployBundle\Helper\ParametersHelper;
 use SN\ToolboxBundle\Helper\CommandHelper;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputInterface;
@@ -18,7 +19,6 @@ use Symfony\Component\Console\Question\ConfirmationQuestion;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\File\Exception\AccessDeniedException;
 use Symfony\Component\HttpKernel\Kernel;
-use Symfony\Component\Yaml\Yaml;
 use vierbergenlars\SemVer\version;
 
 class DeployCommand extends ContainerAwareCommand
@@ -46,7 +46,7 @@ class DeployCommand extends ContainerAwareCommand
             ->setDescription('Deploy project to server')
             ->addArgument('environment',
                 null,
-                'environment you will deployed',
+                'environment you watn to deploy',
                 'prod')
             ->addOption(
                 'source-dir',
@@ -83,11 +83,13 @@ class DeployCommand extends ContainerAwareCommand
         $this->config    = $this->getContainer()->getParameter('sn_deploy');
 
         $this->checkRepoClean();
-        $this->branchCheck();
+        $this->checkBranch();
         $this->checkVersion();
         $this->checkRemoteParameters();
-        $this->rebuildAssets();
+        $this->composerInstall();
+        $this->cacheClear();
         $this->createExculdeFile();
+        $this->preUploadCommand();
 
         CommandHelper::writeHeadline(
             $output,
@@ -108,18 +110,13 @@ class DeployCommand extends ContainerAwareCommand
         }
 
         $this->upload($sourceDir);
-
-        $this->copyDistParameters();
-
+        $this->copyRemoteParameters();
         $this->executeRemoteCommand("rm -rf var/cache/*", $this->output);
+        $this->remoteCacheClear();
+
         if (!$skipDB) {
             $this->upgradeRemoteDatabase($this->output);
         }
-        //clear cache
-        $this->executeRemoteCommand(
-            "php bin/console cache:clear --env=prod",
-            $this->output
-        );
 
         //write version number to remote rev file
         $this->executeRemoteCommand(
@@ -129,12 +126,31 @@ class DeployCommand extends ContainerAwareCommand
 
         $this->replaceRemoteVersion($this->nextVersion, $this->output);
 
-        //clear cache
-        $this->executeRemoteCommand(
-            "php bin/console cache:clear --env=prod",
-            $this->output
-        );
+        $this->remoteCacheClear();
+        $this->postUploadCommand();
 
+    }
+
+    protected function copyRemoteParameters() {
+        $this->executeRemoteCommand("mv app/config/parameters.yml.remote app/config/parameters.yml");
+    }
+
+    protected function cacheClear()
+    {
+        $cacheClear = $this->envConfig["cacheClear"];
+
+        foreach ($cacheClear as $cmd) {
+            CommandHelper::executeCommand($cmd, $this->output, false);
+        }
+    }
+
+    protected function remoteCacheClear()
+    {
+        $cacheClear = $this->envConfig["cacheClear"];
+
+        foreach ($cacheClear as $cmd) {
+            $this->executeRemoteCommand($cmd, false);
+        }
     }
 
     protected function createExculdeFile()
@@ -147,7 +163,7 @@ class DeployCommand extends ContainerAwareCommand
         CommandHelper::executeCommand("echo 'app/config/parameters.yml' > /tmp/rsyncexclude.txt", $this->output, false);
 
         foreach ($exclude as $file) {
-            CommandHelper::executeCommand(sprintf("echo '%s' > /tmp/rsyncexclude.txt", $file), $this->output, false);
+            CommandHelper::executeCommand(sprintf("echo '%s' >> /tmp/rsyncexclude.txt", $file), $this->output, false);
         }
 
     }
@@ -175,17 +191,6 @@ class DeployCommand extends ContainerAwareCommand
         }
 
         return $this->nextVersion;
-    }
-
-    protected function copyDistParameters()
-    {
-        if (!$this->remoteParams) {
-            $copyParameters = sprintf(
-                "cp app/config/parameters.yml.dist app/config/parameters.yml"
-            );
-
-            $this->executeRemoteCommand($copyParameters);
-        }
     }
 
     protected function checkVersion()
@@ -236,27 +241,21 @@ class DeployCommand extends ContainerAwareCommand
 
     protected function checkRemoteParameters()
     {
-        // check remote parameters.yml
+        $parameterHelper = new ParametersHelper($this->input, $this->output, $this->getHelper('question'));
+
+        // Download paramters.yml -> parameters.yml.remote
         $remoteParams = $this->executeRemoteCommand("cat app/config/parameters.yml", $this->output, false);
+        $fs = new Filesystem();
+        $fs->dumpFile('app/config/parameters.yml.remote', $remoteParams);
 
-        if (empty($remoteParams)) {
-            $this->remoteParams = false;
-            $this->output->writeln(sprintf('<info>remote [parameters.yml] is not existing yet.</info>'));
-
-        } else {
-
-            $localParams = file_get_contents(sprintf('%s/config/parameters.yml',
-                $this->getContainer()->getParameter('kernel.root_dir')
-            ));
-
-            CommandHelper::compareParametersYml($this->output, Yaml::parse($remoteParams), Yaml::parse($localParams));
-
-            $this->output->writeln(sprintf('<info>remote [parameters.yml] is not missing any keys</info>'));
-
-        }
+        // Compare parameters.yml -> parameters.yml.remote
+        $parameterHelper->processFile(array(
+            "file" => "app/config/parameters.yml.remote",
+            "dist-file" => "app/config/parameters.yml"
+        ));
     }
 
-    protected function branchCheck()
+    protected function checkBranch()
     {
 
         CommandHelper::writeHeadline($this->output, "performing preflight checks");
@@ -309,6 +308,7 @@ class DeployCommand extends ContainerAwareCommand
 
     public function upgradeRemoteDatabase(OutputInterface $output)
     {
+        //todo:env in doctrine
         //migrate db
         $this->executeRemoteCommand(
             "php bin/console doctrine:migrations:migrate --env=prod",
@@ -327,8 +327,7 @@ class DeployCommand extends ContainerAwareCommand
      * @param boolean $write
      * @return string
      */
-    public function executeRemoteCommand($command,
-                                         $write = true)
+    public function executeRemoteCommand($command, $write = true)
     {
         $cmd = sprintf(
             'ssh %s@%s "cd %s; %s"',
@@ -342,16 +341,10 @@ class DeployCommand extends ContainerAwareCommand
     }
 
 
-    public function rebuildAssets()
+    public function composerInstall()
     {
         $output = $this->output;
         CommandHelper::executeCommand(sprintf("%s install --optimize-autoloader", $this->config["composer"]), $output);
-        CommandHelper::executeCommand('rm -rf web/bundles/*', $output);
-        CommandHelper::executeCommand('rm -rf web/js/*', $output);
-        CommandHelper::executeCommand('rm -rf web/css/*', $output);
-        CommandHelper::executeCommand('php bin/console cache:clear --env=dev', $output);
-        CommandHelper::executeCommand('php bin/console cache:clear --env=prod', $output);
-        CommandHelper::executeCommand('php bin/console assets:install', $output);
     }
 
     public function replaceRemoteVersion($nextVersion, OutputInterface $output)

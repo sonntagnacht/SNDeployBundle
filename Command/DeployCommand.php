@@ -173,7 +173,7 @@ class DeployCommand extends ContainerAwareCommand
 
     protected function cacheClear()
     {
-        $cacheClear = $this->envConfig["cacheClear"];
+        $cacheClear = $this->envConfig["cache_clear"];
 
         foreach ($cacheClear as $cmd) {
             CommandHelper::executeCommand($cmd, $this->output, false);
@@ -182,7 +182,7 @@ class DeployCommand extends ContainerAwareCommand
 
     protected function remoteCacheClear()
     {
-        $cacheClear = $this->envConfig["cacheClear"];
+        $cacheClear = $this->envConfig["cache_clear"];
 
         foreach ($cacheClear as $cmd) {
             $this->executeRemoteCommand($cmd, false);

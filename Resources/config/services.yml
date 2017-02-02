@@ -1,4 +1,4 @@
 services:
-#    sn_deploy.example:
-#        class: SN\DeployBundle\Example
-#        arguments: ["@service_id", "plain_value", "%parameter%"]
+    sn_deploy:
+        class: SN\DeployBundle\Services\Version
+        arguments: ["%sn_deploy%", %kernel.root_dir%]

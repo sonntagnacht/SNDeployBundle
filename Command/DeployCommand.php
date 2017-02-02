@@ -202,7 +202,7 @@ class DeployCommand extends ContainerAwareCommand
     {
 
         if ($this->remoteVersion === null) {
-            $deployJSON = json_decode($this->executeRemoteCommand("cat deploy.json", $this->output), false);
+            $deployJSON = json_decode($this->executeRemoteCommand("cat deploy.json", $this->output), true);
             if (empty($deployJSON["version"])) {
                 $this->remoteVersion = new version("0.0.0");
             } else {

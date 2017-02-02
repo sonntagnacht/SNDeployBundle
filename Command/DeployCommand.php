@@ -10,7 +10,7 @@ namespace SN\DeployBundle\Command;
 
 
 use SN\DeployBundle\Helper\ParametersHelper;
-use SN\ToolboxBundle\Helper\CommandHelper;
+use SN\DeployBundle\Helper\CommandHelper;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;

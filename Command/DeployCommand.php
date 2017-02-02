@@ -380,12 +380,6 @@ class DeployCommand extends ContainerAwareCommand
         CommandHelper::executeCommand(sprintf("%s install --optimize-autoloader", $this->config["composer"]), $output);
     }
 
-    public function replaceRemoteVersion($nextVersion)
-    {
-        $fs   = new Filesystem();
-        $json = array("json")
-    }
-
     public function checkRepoClean()
     {
         $output = $this->output;

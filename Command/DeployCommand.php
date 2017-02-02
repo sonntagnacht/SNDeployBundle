@@ -367,7 +367,7 @@ class DeployCommand extends ContainerAwareCommand
             $this->envConfig["user"],
             $this->envConfig["host"],
             $this->envConfig["webroot"],
-            $command
+            addslashes($command)
         );
 
         return CommandHelper::executeCommand($cmd, $this->output, $write);

@@ -112,19 +112,13 @@ class DeployCommand extends ContainerAwareCommand
         $this->copyRemoteParameters();
         $this->executeRemoteCommand("rm -rf var/cache/*", $this->output);
         $this->remoteCacheClear();
-        $this->postUploadRemoteCommand();
 
         if (!$skipDB) {
             $this->upgradeRemoteDatabase($this->output);
         }
 
-        //write version number to remote rev file
-        $this->executeRemoteCommand(
-            sprintf('echo "%s" > version.txt', $this->nextVersion->getVersion()),
-            $this->output
-        );
-
-        $this->replaceRemoteVersion($this->nextVersion, $this->output);
+        $this->setRemoteVersion();
+        $this->postUploadRemoteCommand();
 
         $this->remoteCacheClear();
         $this->postUploadCommand();
@@ -208,7 +202,7 @@ class DeployCommand extends ContainerAwareCommand
     {
 
         if ($this->remoteVersion === null) {
-            $deployJSON = json_decode($this->executeRemoteCommand("cat deploy.json", $this->output), true);
+            $deployJSON = json_decode($this->executeRemoteCommand("cat deploy.json", $this->output), false);
             if (empty($deployJSON["version"])) {
                 $this->remoteVersion = new version("0.0.0");
             } else {
@@ -386,23 +380,10 @@ class DeployCommand extends ContainerAwareCommand
         CommandHelper::executeCommand(sprintf("%s install --optimize-autoloader", $this->config["composer"]), $output);
     }
 
-    public function replaceRemoteVersion($nextVersion, OutputInterface $output)
+    public function replaceRemoteVersion($nextVersion)
     {
-        //replace version in login layout
-        $this->executeRemoteCommand(
-            sprintf(
-                "sed -i 's/~~version~~/%s/g' app/config/version.yml",
-                $nextVersion
-            ),
-            $output
-        );
-//        $this->executeRemoteCommand(
-//            sprintf(
-//                "sed -i 's/@@version@@/%s/g' src/UO/Bundle/ChangeListBundle/Resources/views/version.html.twig",
-//                $nextVersion
-//            ),
-//            $output
-//        );
+        $fs   = new Filesystem();
+        $json = array("json")
     }
 
     public function checkRepoClean()

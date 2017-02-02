@@ -3,7 +3,7 @@
 
 app/config.yml:
 
-    sn_depoly:
+    sn_deploy:
         composer: "/usr/bin/composer"
         environments: 
             prod:

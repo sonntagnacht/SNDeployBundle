@@ -131,7 +131,23 @@ class DeployCommand extends ContainerAwareCommand
 
     }
 
-    protected function copyRemoteParameters() {
+    protected function setRemoteVersion()
+    {
+        $commit  = CommandHelper::executeCommand("git rev-parse HEAD", $this->output, false);
+        $version = $this->nextVersion->getVersion();
+
+        $json = array(
+            "commit"  => $commit,
+            "version" => $version
+        );
+
+        $this->executeRemoteCommand(
+            sprintf("echo \"%s\" > deploy.json", addslashes(json_encode($json))),
+            false);
+    }
+
+    protected function copyRemoteParameters()
+    {
         $this->executeRemoteCommand("mv app/config/parameters.yml.remote app/config/parameters.yml");
     }
 
@@ -245,12 +261,12 @@ class DeployCommand extends ContainerAwareCommand
 
         // Download paramters.yml -> parameters.yml.remote
         $remoteParams = $this->executeRemoteCommand("cat app/config/parameters.yml", $this->output, false);
-        $fs = new Filesystem();
+        $fs           = new Filesystem();
         $fs->dumpFile('app/config/parameters.yml.remote', $remoteParams);
 
         // Compare parameters.yml -> parameters.yml.remote
         $parameterHelper->processFile(array(
-            "file" => "app/config/parameters.yml.remote",
+            "file"      => "app/config/parameters.yml.remote",
             "dist-file" => "app/config/parameters.yml"
         ));
     }

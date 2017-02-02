@@ -9,8 +9,8 @@
 namespace SN\DeployBundle\Command;
 
 
-use SN\DeployBundle\Helper\ParametersHelper;
 use SN\DeployBundle\Helper\CommandHelper;
+use SN\DeployBundle\Helper\ParametersHelper;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -82,8 +82,10 @@ class DeployCommand extends ContainerAwareCommand
 
         $this->checkRepoClean();
         $this->checkBranch();
-        $this->checkVersion();
-        $this->checkRemoteParameters();
+        if ($this->envConfig['check_version']) {
+            $this->checkVersion();
+            $this->checkRemoteParameters();
+        }
         $this->composerInstall();
         $this->cacheClear();
         $this->createExculdeFile();

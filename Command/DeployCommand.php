@@ -82,10 +82,8 @@ class DeployCommand extends ContainerAwareCommand
 
         $this->checkRepoClean();
         $this->checkBranch();
-        if ($this->envConfig['check_version']) {
-            $this->checkVersion();
-            $this->checkRemoteParameters();
-        }
+        $this->checkVersion();
+        $this->checkRemoteParameters();
         $this->composerInstall();
         $this->cacheClear();
         $this->createExculdeFile();
@@ -241,6 +239,10 @@ class DeployCommand extends ContainerAwareCommand
         $currentVersion = $this->getRemoteVersion();
         //check current git tag for next version number
         $nextVersion = $this->getNextVersion();
+
+        if ($this->envConfig['check_version']) {
+            return;
+        }
 
         if ($hotfix) {
             CommandHelper::writeHeadline(

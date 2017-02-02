@@ -58,7 +58,6 @@ class DeployCommand extends ContainerAwareCommand
                 null,
                 InputOption::VALUE_NONE,
                 'Skips semver checks to perform a hotfix quick\'n\'dirty')
-            ->addOption('no-lock', null, InputOption::VALUE_NONE, 'Skips locking of app')
             ->addOption('skip-db', null, InputOption::VALUE_NONE, 'Skips db upgrades');
     }
 
@@ -69,7 +68,6 @@ class DeployCommand extends ContainerAwareCommand
 
 
         $hotfix    = $input->getOption('hotfix');
-        $noLock    = $input->getOption('no-lock');
         $skipDB    = $input->getOption('skip-db');
         $this->env = $input->getArgument('environment');
 
@@ -109,10 +107,12 @@ class DeployCommand extends ContainerAwareCommand
             $sourceDir = $input->getOption('source-dir');
         }
 
+        $this->preUploadRemoteCommand();
         $this->upload($sourceDir);
         $this->copyRemoteParameters();
         $this->executeRemoteCommand("rm -rf var/cache/*", $this->output);
         $this->remoteCacheClear();
+        $this->postUploadRemoteCommand();
 
         if (!$skipDB) {
             $this->upgradeRemoteDatabase($this->output);
@@ -129,6 +129,26 @@ class DeployCommand extends ContainerAwareCommand
         $this->remoteCacheClear();
         $this->postUploadCommand();
 
+    }
+
+    protected function preUploadRemoteCommand()
+    {
+        if (isset($this->envConfig["post_upload_remote"]) === false) {
+            return;
+        }
+        foreach ($this->envConfig["post_upload_remote"] as $cmd) {
+            $this->executeRemoteCommand($cmd, false);
+        }
+    }
+
+    protected function postUploadRemoteCommand()
+    {
+        if (isset($this->envConfig["post_upload_remote"]) === false) {
+            return;
+        }
+        foreach ($this->envConfig["post_upload_remote"] as $cmd) {
+            $this->executeRemoteCommand($cmd, false);
+        }
     }
 
     protected function setRemoteVersion()
@@ -188,11 +208,11 @@ class DeployCommand extends ContainerAwareCommand
     {
 
         if ($this->remoteVersion === null) {
-            $currentVersionNumber = $this->executeRemoteCommand("cat version.txt", $this->output);
-            if (empty($currentVersionNumber)) {
+            $deployJSON = json_decode($this->executeRemoteCommand("cat deploy.json", $this->output), true);
+            if (empty($deployJSON["version"])) {
                 $this->remoteVersion = new version("0.0.0");
             } else {
-                $this->remoteVersion = new version($currentVersionNumber);
+                $this->remoteVersion = new version($deployJSON["version"]);
             }
         }
 
@@ -231,7 +251,6 @@ class DeployCommand extends ContainerAwareCommand
                 ),
                 '<question>%s</question>'
             );
-            CommandHelper::countdown($output, 5);
         }
 
         if (substr_count($nextVersion->getVersion(), '-') > 1 && !$hotfix) {
@@ -304,20 +323,20 @@ class DeployCommand extends ContainerAwareCommand
 
     protected function preUploadCommand()
     {
-        if (isset($this->envConfig["preUpload"]) === false) {
+        if (isset($this->envConfig["pre_upload"]) === false) {
             return;
         }
-        foreach ($this->envConfig["preUpload"] as $cmd) {
+        foreach ($this->envConfig["pre_upload"] as $cmd) {
             CommandHelper::executeCommand($cmd, $this->output);
         }
     }
 
     protected function postUploadCommand()
     {
-        if (isset($this->envConfig["postUpload"]) === false) {
+        if (isset($this->envConfig["post_upload"]) === false) {
             return;
         }
-        foreach ($this->envConfig["postUpload"] as $cmd) {
+        foreach ($this->envConfig["post_upload"] as $cmd) {
             CommandHelper::executeCommand($cmd, $this->output);
         }
     }

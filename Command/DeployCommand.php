@@ -127,10 +127,10 @@ class DeployCommand extends ContainerAwareCommand
 
     protected function preUploadRemoteCommand()
     {
-        if (isset($this->envConfig["post_upload_remote"]) === false) {
+        if (isset($this->envConfig["pre_upload_remote"]) === false) {
             return;
         }
-        foreach ($this->envConfig["post_upload_remote"] as $cmd) {
+        foreach ($this->envConfig["pre_upload_remote"] as $cmd) {
             $this->executeRemoteCommand($cmd, false);
         }
     }

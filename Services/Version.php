@@ -24,33 +24,65 @@ class Version
     }
 
     /**
+     * @return bool|array
+     */
+    protected function getSettings()
+    {
+        $deploy_file = sprintf("%s/../deploy.json", $this->root);
+        if (file_exists($deploy_file)) {
+            $json = file_get_contents(sprintf($deploy_file, $this->root));
+            $json = json_decode($json, true);
+
+            return $json;
+        }
+
+        return false;
+    }
+
+    /**
      * @return string
      */
     public function getVersion()
     {
-        $deploy_file = sprintf("%s/../deploy.json", $this->root);
-        if(file_exists($deploy_file)) {
-            $json = file_get_contents(sprintf($deploy_file, $this->root));
-            $json = json_decode($json, true);
-            return $json["version"];
+
+        $settings = $this->getSettings();
+        if ($settings === false) {
+            return "__DEV__";
         }
 
-        return "__DEV__";
+        return $settings["version"];
+
     }
 
     /**
      * @return null|string
      */
-    public function getCommit(){
+    public function getCommit()
+    {
 
-        $deploy_file = sprintf("%s/../deploy.json", $this->root);
-        if(file_exists($deploy_file)) {
-            $json = file_get_contents(sprintf($deploy_file, $this->root));
-            $json = json_decode($json, true);
-            return $json["commit"];
+        $settings = $this->getSettings();
+        if ($settings === false) {
+            return null;
         }
 
-        return null;
+        return $settings["commit"];
+
+    }
+
+    /**
+     * @return \DateTime|null
+     */
+    public function getTime()
+    {
+        $settings = $this->getSettings();
+        if ($settings === false) {
+            return null;
+        }
+
+        $date = new \DateTime();
+        $date->setTimestamp($settings["timestamp"]);
+
+        return $date;
     }
 
 }

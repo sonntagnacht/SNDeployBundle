@@ -2,3 +2,4 @@ services:
     sn_deploy:
         class: SN\DeployBundle\Services\Version
         arguments: ['%sn_deploy%', '%kernel.root_dir%']
+        lazy: true

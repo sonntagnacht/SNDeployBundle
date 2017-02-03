@@ -151,8 +151,9 @@ class DeployCommand extends ContainerAwareCommand
         $version = $this->nextVersion->getVersion();
 
         $json = array(
-            "commit"  => $commit,
-            "version" => $version
+            "commit"    => $commit,
+            "version"   => $version,
+            "timestamp" => time(),
         );
 
         $this->executeRemoteCommand(

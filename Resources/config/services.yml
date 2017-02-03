@@ -1,5 +1,5 @@
 services:
-    sn_deploy:
+    sn_deploy.twig:
         class: SN\DeployBundle\Services\Version
         arguments: ['%sn_deploy%', '%kernel.root_dir%']
         lazy: true

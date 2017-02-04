@@ -21,7 +21,7 @@ app/config.yml:
                 webroot: /var/www/html
                 # to permit deploy only from one branch
                 branch: "production"        # default null
-                # repository version have to be newer then remote version 
+                # repository version has to be newer then remote version 
                 check_version: false        # default false  
                 # cache clear commands
                 cache_clear:

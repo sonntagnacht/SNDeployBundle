@@ -11,6 +11,8 @@
 namespace SN\DeployBundle\Services;
 
 
+use SN\ToolboxBundle\Helper\CommandHelper;
+
 class Version
 {
 
@@ -55,17 +57,35 @@ class Version
     }
 
     /**
-     * @return null|string
+     * @param bool $short
+     * @return string
      */
-    public function getCommit()
+    public function getCommit($short = true)
     {
+        // Will try first `git reb-parse HEAD`
+        if ($short) {
+            $cmd = sprintf("git rev-parse --short HEAD");
+        } else {
+            $cmd = sprintf("git rev-parse HEAD");
+        }
+        $commit = CommandHelper::executeCommand($cmd);
 
+        if (strpos($commit, "command not found") === false) {
+            return $commit;
+        }
+
+        // If git is not installed, it will try to get deploy.json informations
         $settings = $this->getSettings();
+        
         if ($settings === false) {
             return null;
         }
 
-        return $settings["commit"];
+        if ($short) {
+            return $settings["commit"];
+        } else {
+            return $settings["commit_long"];
+        }
 
     }
 

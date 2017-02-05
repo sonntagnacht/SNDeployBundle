@@ -147,11 +147,13 @@ class DeployCommand extends ContainerAwareCommand
 
     protected function setRemoteVersion()
     {
-        $commit  = CommandHelper::executeCommand("git rev-parse HEAD", $this->output, false);
+        $commit  = $this->getContainer()->get('sn_deploy.twig')->getCommit();
+        $commitLong  = $this->getContainer()->get('sn_deploy.twig')->getCommit(false);
         $version = $this->nextVersion->getVersion();
 
         $json = array(
             "commit"    => $commit,
+            "commit_long"    => $commitLong,
             "version"   => $version,
             "timestamp" => time(),
         );

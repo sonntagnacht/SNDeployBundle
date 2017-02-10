@@ -312,7 +312,7 @@ class DeployCommand extends ContainerAwareCommand
     protected function upload($sourceDir)
     {
         $rsyncCommand = sprintf(
-            "rsync --info=progress2 -r --links --exclude-from /tmp/rsyncexclude.txt --rsh='ssh' %s/ %s@%s:%s",
+            "rsync --delete --info=progress2 -r --links --exclude-from /tmp/rsyncexclude.txt --rsh='ssh' %s/ %s@%s:%s",
             $sourceDir,
             $this->envConfig["user"],
             $this->envConfig["host"],

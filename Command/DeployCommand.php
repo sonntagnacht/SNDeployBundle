@@ -9,8 +9,8 @@
 namespace SN\DeployBundle\Command;
 
 
-use SN\ToolboxBundle\Helper\CommandHelper;
 use SN\DeployBundle\Helper\ParametersHelper;
+use SN\ToolboxBundle\Helper\CommandHelper;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -41,13 +41,14 @@ class DeployCommand extends ContainerAwareCommand
 
     protected function configure()
     {
+
         $this
             ->setName('sn:deploy')
             ->setDescription('Deploy project to server')
             ->addArgument('environment',
                 null,
                 'environment you watn to deploy',
-                'prod')
+                null)
             ->addOption(
                 'source-dir',
                 null,
@@ -70,8 +71,16 @@ class DeployCommand extends ContainerAwareCommand
         $hotfix    = $input->getOption('hotfix');
         $skipDB    = $input->getOption('skip-db');
         $this->env = $input->getArgument('environment');
+        $config    = $this->getContainer()->getParameter('sn_deploy.environments');
 
-        $config = $this->getContainer()->getParameter('sn_deploy.environments');
+        if ($this->env == null) {
+            if (key_exists("default", $this->getContainer()->getParameter('sn_deploy'))) {
+                $this->env = $this->getContainer()->getParameter('sn_deploy')["default"];
+            } else {
+                throw new \Exception(sprintf("Missing argument"));
+            }
+        }
+
 
         if (!key_exists($this->env, $config)) {
             throw new \Exception(sprintf("Configuration for %s not found.", $this->env));
@@ -147,15 +156,15 @@ class DeployCommand extends ContainerAwareCommand
 
     protected function setRemoteVersion()
     {
-        $commit  = $this->getContainer()->get('sn_deploy.twig')->getCommit();
-        $commitLong  = $this->getContainer()->get('sn_deploy.twig')->getCommit(false);
-        $version = $this->nextVersion->getVersion();
+        $commit     = $this->getContainer()->get('sn_deploy.twig')->getCommit();
+        $commitLong = $this->getContainer()->get('sn_deploy.twig')->getCommit(false);
+        $version    = $this->nextVersion->getVersion();
 
         $json = array(
-            "commit"    => $commit,
-            "commit_long"    => $commitLong,
-            "version"   => $version,
-            "timestamp" => time(),
+            "commit"      => $commit,
+            "commit_long" => $commitLong,
+            "version"     => $version,
+            "timestamp"   => time(),
         );
 
         $this->executeRemoteCommand(

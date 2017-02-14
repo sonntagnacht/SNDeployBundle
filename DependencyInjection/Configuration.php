@@ -23,6 +23,7 @@ class Configuration implements ConfigurationInterface
         $rootNode
             ->children()
             ->scalarNode('composer')->defaultValue('composer')->end()
+            ->scalarNode('default')->defaultValue(null)->end()
                 ->arrayNode('environments')
                 ->children()
                     ->arrayNode('prod')

@@ -375,9 +375,10 @@ class DeployCommand extends ContainerAwareCommand
     public function executeRemoteCommand($command, $write = true)
     {
         $cmd = sprintf(
-            'ssh %s@%s "cd %s; %s"',
+            'ssh %s@%s -p%s "cd %s; %s"',
             $this->envConfig["user"],
             $this->envConfig["host"],
+            $this->envConfig["port"],
             $this->envConfig["webroot"],
             addslashes($command)
         );

@@ -321,7 +321,8 @@ class DeployCommand extends ContainerAwareCommand
     protected function upload($sourceDir)
     {
         $rsyncCommand = sprintf(
-            "rsync --delete --info=progress2 -r --links --exclude-from /tmp/rsyncexclude.txt --rsh='ssh' %s/ %s@%s:%s",
+            "rsync --delete --info=progress2 -r --links --exclude-from /tmp/rsyncexclude.txt --rsh='ssh -p %s' %s/ %s@%s:%s",
+            $this->envConfig["port"],
             $sourceDir,
             $this->envConfig["user"],
             $this->envConfig["host"],
@@ -390,7 +391,7 @@ class DeployCommand extends ContainerAwareCommand
     public function composerInstall()
     {
         $output = $this->output;
-        CommandHelper::executeCommand(sprintf("%s install --optimize-autoloader", $this->config["composer"]), $output);
+        CommandHelper::executeCommand(sprintf("%s install", $this->config["composer"]), $output);
     }
 
     public function checkRepoClean()

@@ -1,6 +1,6 @@
 # SNDeployBundle
 ## Installation
-    composer require sonntagnacht/deploy-bundle "master-dev"
+    composer require sonntagnacht/deploy-bundle 1.0.0-beta.4
 
 ## Configuration
 

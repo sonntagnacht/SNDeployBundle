@@ -133,6 +133,8 @@ class DeployCommand extends ContainerAwareCommand
         $this->remoteCacheClear();
         $this->postUploadCommand();
 
+        $fs           = new Filesystem();
+        $fs->remove('app/config/parameters.yml.remote');
     }
 
     protected function preUploadRemoteCommand()

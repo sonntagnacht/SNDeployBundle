@@ -120,6 +120,7 @@ class DeployCommand extends ContainerAwareCommand
         $this->upload($sourceDir);
         $this->copyRemoteParameters();
         $this->executeRemoteCommand("rm -rf var/cache/*", $this->output);
+        $this->executeRemoteCommand("rm -rf app/cache/*", $this->output);
         $this->remoteCacheClear();
 
         if (!$skipDB) {
@@ -352,7 +353,7 @@ class DeployCommand extends ContainerAwareCommand
         }
     }
 
-    public function upgradeRemoteDatabase(OutputInterface $output)
+    protected function upgradeRemoteDatabase(OutputInterface $output)
     {
         //todo:env in doctrine
         //migrate db

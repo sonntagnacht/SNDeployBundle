@@ -12,7 +12,6 @@ sn_deploy:
     composer: "/usr/bin/composer"
     default: "prod"                     # default null
     environments:
-        # environments can be prod, test and dev 
         prod:
             # host address of webserver
             host: example.com

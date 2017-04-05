@@ -74,9 +74,12 @@ class DeployCommand extends ContainerAwareCommand
         $config    = $this->getContainer()->getParameter('sn_deploy.environments');
 
         if ($this->env == null) {
-            if (key_exists("default", $this->getContainer()->getParameter('sn_deploy'))) {
-                $this->env = $this->getContainer()->getParameter('sn_deploy')["default"];
-            } else {
+            if (!key_exists("default", $this->getContainer()->getParameter('sn_deploy'))) {
+                throw new \Exception(sprintf("Missing argument"));
+            }
+
+            $this->env = $this->getContainer()->getParameter('sn_deploy')["default"];
+            if (!$this->env) {
                 throw new \Exception(sprintf("Missing argument"));
             }
         }
@@ -133,7 +136,7 @@ class DeployCommand extends ContainerAwareCommand
         $this->remoteCacheClear();
         $this->postUploadCommand();
 
-        $fs           = new Filesystem();
+        $fs = new Filesystem();
         $fs->remove('app/config/parameters.yml.remote');
     }
 

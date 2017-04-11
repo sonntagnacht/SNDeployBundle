@@ -3,3 +3,9 @@ services:
         class: SN\DeployBundle\Services\Version
         arguments: ['%sn_deploy%', '%kernel.root_dir%']
         lazy: true
+    sn_deploy.request_collector:
+        class: SN\DeployBundle\DataCollector\RequestCollector
+        arguments: ['%sn_deploy%', '%kernel.root_dir%']
+        public: false
+        tags:
+            - { name: data_collector, template: '@SNDeploy/webprofiler.html.twig', id: 'sn_deploy.request_collector' }

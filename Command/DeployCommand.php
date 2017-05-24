@@ -63,11 +63,26 @@ class DeployCommand extends ContainerAwareCommand
             ->addOption('skip-db', null, InputOption::VALUE_NONE, 'Skips db upgrades');
     }
 
+    public function stopCommand()
+    {
+        $fs = new Filesystem();
+        if ($fs->exists('app/config/parameters.yml.remote')) {
+            $fs->delete('app/config/parameters.yml.remote');
+        }
+
+        $this->output->writeln('Abort deploying');
+    }
+
+    public function __destruct()
+    {
+        $this->stopCommand();
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+
         $this->output = $output;
         $this->input  = $input;
-
 
         $this->hotfix = $input->getOption('hotfix');
         $skipDB       = $input->getOption('skip-db');

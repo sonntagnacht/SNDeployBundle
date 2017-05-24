@@ -123,8 +123,8 @@ class DeployCommand extends ContainerAwareCommand
         $this->preUploadRemoteCommand();
         $this->upload($sourceDir);
         $this->copyRemoteParameters();
-        $this->executeRemoteCommand("rm -rf var/cache/*", $this->output);
-        $this->executeRemoteCommand("rm -rf app/cache/*", $this->output);
+        $this->executeRemoteCommand("rm -rf var/cache/*", false);
+        $this->executeRemoteCommand("rm -rf app/cache/*", false);
         $this->remoteCacheClear();
 
         if (!$skipDB) {
@@ -181,7 +181,7 @@ class DeployCommand extends ContainerAwareCommand
 
     protected function copyRemoteParameters()
     {
-        $this->executeRemoteCommand("mv app/config/parameters.yml.remote app/config/parameters.yml");
+        $this->executeRemoteCommand("mv app/config/parameters.yml.remote app/config/parameters.yml", false);
     }
 
     protected function cacheClear()
@@ -189,7 +189,7 @@ class DeployCommand extends ContainerAwareCommand
         $cacheClear = $this->envConfig["cache_clear"];
 
         foreach ($cacheClear as $cmd) {
-            CommandHelper::executeCommand($cmd, $this->output, false);
+            CommandHelper::executeCommand($cmd, false);
         }
     }
 
@@ -221,7 +221,7 @@ class DeployCommand extends ContainerAwareCommand
     {
 
         if ($this->remoteVersion === null) {
-            $deployJSON = json_decode($this->executeRemoteCommand("cat deploy.json", $this->output), true);
+            $deployJSON = json_decode($this->executeRemoteCommand("cat deploy.json", false), true);
             if (empty($deployJSON["version"])) {
                 $this->remoteVersion = new version("0.0.0");
             } else {
@@ -235,20 +235,26 @@ class DeployCommand extends ContainerAwareCommand
     protected function getNextVersion()
     {
         if ($this->nextVersion === null) {
-            $nextVersionNumber = CommandHelper::executeCommand("git describe --tags", $this->output);
+            $nextVersionNumber = CommandHelper::executeCommand("git describe --tags");
             $this->nextVersion = new version($nextVersionNumber);
         }
 
         return $this->nextVersion;
     }
 
+    protected function getBranch()
+    {
+        return CommandHelper::executeCommand("git symbolic-ref --short HEAD");
+
+    }
+
     protected function checkVersion()
     {
 
         $output = $this->output;
-        $branch = CommandHelper::executeCommand("git symbolic-ref --short HEAD", $this->output);
 
         $currentVersion = $this->getRemoteVersion();
+        $branch         = $this->getBranch();
         //check current git tag for next version number
         $nextVersion = $this->getNextVersion();
 
@@ -263,6 +269,8 @@ class DeployCommand extends ContainerAwareCommand
                 ),
                 '<question>%s</question>'
             );
+
+            CommandHelper::countdown($this->output, 5);
 
             return;
         }
@@ -291,7 +299,7 @@ class DeployCommand extends ContainerAwareCommand
         $parameterHelper = new ParametersHelper($this->input, $this->output, $this->getHelper('question'));
 
         // Download paramters.yml -> parameters.yml.remote
-        $remoteParams = $this->executeRemoteCommand("cat app/config/parameters.yml", $this->output, false);
+        $remoteParams = $this->executeRemoteCommand("cat app/config/parameters.yml", false);
         $fs           = new Filesystem();
         $fs->dumpFile('app/config/parameters.yml.remote', $remoteParams);
 
@@ -361,13 +369,11 @@ class DeployCommand extends ContainerAwareCommand
         //todo:env in doctrine
         //migrate db
         $this->executeRemoteCommand(
-            "php bin/console doctrine:migrations:migrate --env=prod",
-            $output
+            "php bin/console doctrine:migrations:migrate --env=prod"
         );
         //update db schema
         $this->executeRemoteCommand(
-            "php bin/console doctrine:schema:update --dump-sql --force --env=prod",
-            $output
+            "php bin/console doctrine:schema:update --dump-sql --force --env=prod"
         );
     }
 
@@ -388,7 +394,12 @@ class DeployCommand extends ContainerAwareCommand
             addslashes($command)
         );
 
-        return CommandHelper::executeCommand($cmd, $this->output, $write);
+        if ($write) {
+            return CommandHelper::executeCommand($cmd, $this->output, $write);
+        } else {
+            return CommandHelper::executeCommand($cmd);
+        }
+
     }
 
 

@@ -252,11 +252,7 @@ class DeployCommand extends ContainerAwareCommand
         //check current git tag for next version number
         $nextVersion = $this->getNextVersion();
 
-        if ($this->envConfig['check_version']) {
-            return;
-        }
-
-        if ($hotfix) {
+        if (false === isset($this->envConfig['check_version']) || true === $hotfix) {
             CommandHelper::writeHeadline(
                 $output,
                 sprintf(
@@ -267,9 +263,11 @@ class DeployCommand extends ContainerAwareCommand
                 ),
                 '<question>%s</question>'
             );
+
+            return;
         }
 
-        if (substr_count($nextVersion->getVersion(), '-') > 1 && !$hotfix) {
+        if (substr_count($nextVersion->getVersion(), '-') > 1) {
             throw new AccessDeniedException(
                 sprintf("cannot deploy untagged revision %s", $nextVersion->getVersion())
             );
@@ -277,16 +275,14 @@ class DeployCommand extends ContainerAwareCommand
 
         //check for valid version
         if (version::cmp($nextVersion, ">", $currentVersion) !== true) {
-            if (!$hotfix) {
-                throw new AccessDeniedException(
-                    sprintf(
-                        "cannot deploy local version [%s]. The version [%s] on the server [%s] is more up-to-date.",
-                        $nextVersion,
-                        $currentVersion,
-                        $this->envConfig["host"]
-                    )
-                );
-            }
+            throw new AccessDeniedException(
+                sprintf(
+                    "cannot deploy local version [%s]. The version [%s] on the server [%s] is more up-to-date.",
+                    $nextVersion,
+                    $currentVersion,
+                    $this->envConfig["host"]
+                )
+            );
         }
     }
 

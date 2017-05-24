@@ -65,12 +65,12 @@ class DeployCommand extends ContainerAwareCommand
 
     public function stopCommand()
     {
-        $fs = new Filesystem();
-        if ($fs->exists('app/config/parameters.yml.remote')) {
-            $fs->delete('app/config/parameters.yml.remote');
+        $fs                = new Filesystem();
+        $remote_parameters = sprintf('%s/config/parameters.yml.remote',
+            $this->getContainer()->getParameter("kernel.root_dir"));
+        if ($fs->exists($remote_parameters)) {
+            $fs->remove($remote_parameters);
         }
-
-        $this->output->writeln('Abort deploying');
     }
 
     public function __destruct()
@@ -151,9 +151,6 @@ class DeployCommand extends ContainerAwareCommand
 
         $this->remoteCacheClear();
         $this->postUploadCommand();
-
-        $fs = new Filesystem();
-        $fs->remove('app/config/parameters.yml.remote');
     }
 
     protected function preUploadRemoteCommand()
@@ -204,7 +201,7 @@ class DeployCommand extends ContainerAwareCommand
         $cacheClear = $this->envConfig["cache_clear"];
 
         foreach ($cacheClear as $cmd) {
-            CommandHelper::executeCommand($cmd, false);
+            CommandHelper::executeCommand($cmd);
         }
     }
 

@@ -30,6 +30,7 @@ class DeployCommand extends ContainerAwareCommand
     protected $remoteVersion = null;
     protected $nextVersion = null;
     protected $remoteParams = true;
+    protected $hotfix = false;
     /**
      * @var OutputInterface
      */
@@ -68,10 +69,10 @@ class DeployCommand extends ContainerAwareCommand
         $this->input  = $input;
 
 
-        $hotfix    = $input->getOption('hotfix');
-        $skipDB    = $input->getOption('skip-db');
-        $this->env = $input->getArgument('environment');
-        $config    = $this->getContainer()->getParameter('sn_deploy.environments');
+        $this->hotfix = $input->getOption('hotfix');
+        $skipDB       = $input->getOption('skip-db');
+        $this->env    = $input->getArgument('environment');
+        $config       = $this->getContainer()->getParameter('sn_deploy.environments');
 
         if ($this->env == null) {
             if (!key_exists("default", $this->getContainer()->getParameter('sn_deploy'))) {
@@ -243,16 +244,15 @@ class DeployCommand extends ContainerAwareCommand
 
     protected function checkVersion()
     {
-        $hotfix = $this->input->getOption('hotfix');
+
         $output = $this->output;
         $branch = CommandHelper::executeCommand("git symbolic-ref --short HEAD", $this->output);
-
 
         $currentVersion = $this->getRemoteVersion();
         //check current git tag for next version number
         $nextVersion = $this->getNextVersion();
 
-        if (false === isset($this->envConfig['check_version']) || true === $hotfix) {
+        if (false === isset($this->envConfig['check_version']) || true === $this->hotfix) {
             CommandHelper::writeHeadline(
                 $output,
                 sprintf(
@@ -304,11 +304,13 @@ class DeployCommand extends ContainerAwareCommand
 
     protected function checkBranch()
     {
-
+        if (null === $this->envConfig['branch'] || true === $this->hotfix) {
+            return;
+        }
         CommandHelper::writeHeadline($this->output, "performing preflight checks");
 
         $branch = CommandHelper::executeCommand("git symbolic-ref --short HEAD", $this->output);
-        if (!$this->input->getOption('hotfix') && $this->envConfig['branch'] !== null && $branch !== $this->envConfig['branch']) {
+        if ($branch !== $this->envConfig['branch']) {
             $this->resetBranch($this->output);
             throw new \Exception(sprintf("can only deploy when on branch [%s]",
                 $this->envConfig['branch']));

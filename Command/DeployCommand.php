@@ -350,9 +350,9 @@ class DeployCommand extends ContainerAwareCommand
     {
         $rsyncCommand = sprintf(
             "rsync --delete --info=progress2 -r --links --exclude-from %s --rsh='ssh -p %s' %s/ %s@%s:%s",
+            self::RSYNC_EXCLUDE,
             $this->envConfig["ssh_port"],
             $sourceDir,
-            self::RSYNC_EXCLUDE,
             $this->envConfig["ssh_user"],
             $this->envConfig["ssh_host"],
             $this->envConfig["remote_app_dir"]
@@ -380,20 +380,6 @@ class DeployCommand extends ContainerAwareCommand
             CommandHelper::executeCommand($cmd, $this->output);
         }
     }
-
-    protected function upgradeRemoteDatabase(OutputInterface $output)
-    {
-        //todo:env in doctrine
-        //migrate db
-        $this->executeRemoteCommand(
-            "php bin/console doctrine:migrations:migrate --env=prod"
-        );
-        //update db schema
-        $this->executeRemoteCommand(
-            "php bin/console doctrine:schema:update --dump-sql --force --env=prod"
-        );
-    }
-
 
     /**
      * @param String $command
@@ -435,7 +421,7 @@ class DeployCommand extends ContainerAwareCommand
         CommandHelper::executeCommand("git status", $output);
         $output->writeln("");
         $helper   = $this->getHelper('question');
-        $question = new ConfirmationQuestion('<question>Does that look OK to you? (y/n)</question>', false);
+        $question = new ConfirmationQuestion('<question>Does that look OK to you? (Y/n)</question>', true);
 
         if (!$helper->ask($input, $output, $question)) {
             throw new \Exception(sprintf("better fix it then..."));

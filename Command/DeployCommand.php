@@ -89,11 +89,11 @@ class DeployCommand extends ContainerAwareCommand
         $config       = $this->getContainer()->getParameter('sn_deploy.environments');
 
         if ($this->env == null) {
-            if (!key_exists("default", $this->getContainer()->getParameter('sn_deploy'))) {
+            if (!key_exists("default_environment", $this->getContainer()->getParameter('sn_deploy'))) {
                 throw new \Exception(sprintf("Missing argument"));
             }
 
-            $this->env = $this->getContainer()->getParameter('sn_deploy')["default"];
+            $this->env = $this->getContainer()->getParameter('sn_deploy')["default_environment"];
             if (!$this->env) {
                 throw new \Exception(sprintf("Missing argument"));
             }
@@ -295,7 +295,7 @@ class DeployCommand extends ContainerAwareCommand
                     "cannot deploy local version [%s]. The version [%s] on the server [%s] is more up-to-date.",
                     $nextVersion,
                     $currentVersion,
-                    $this->envConfig["host"]
+                    $this->envConfig["ssh_host"]
                 )
             );
         }
@@ -341,10 +341,10 @@ class DeployCommand extends ContainerAwareCommand
     {
         $rsyncCommand = sprintf(
             "rsync --delete --info=progress2 -r --links --exclude-from /tmp/rsyncexclude.txt --rsh='ssh -p %s' %s/ %s@%s:%s",
-            $this->envConfig["port"],
+            $this->envConfig["ssh_port"],
             $sourceDir,
-            $this->envConfig["user"],
-            $this->envConfig["host"],
+            $this->envConfig["ssh_user"],
+            $this->envConfig["ssh_host"],
             $this->envConfig["webroot"]
         );
 
@@ -394,9 +394,9 @@ class DeployCommand extends ContainerAwareCommand
     {
         $cmd = sprintf(
             'ssh %s@%s -p%s "cd %s; %s"',
-            $this->envConfig["user"],
-            $this->envConfig["host"],
-            $this->envConfig["port"],
+            $this->envConfig["ssh_user"],
+            $this->envConfig["ssh_host"],
+            $this->envConfig["ssh_port"],
             $this->envConfig["webroot"],
             addslashes($command)
         );

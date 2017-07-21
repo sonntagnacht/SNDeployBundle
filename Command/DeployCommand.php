@@ -345,7 +345,7 @@ class DeployCommand extends ContainerAwareCommand
             $sourceDir,
             $this->envConfig["ssh_user"],
             $this->envConfig["ssh_host"],
-            $this->envConfig["webroot"]
+            $this->envConfig["remote_app_dir"]
         );
 
         CommandHelper::executeCommand($rsyncCommand, $this->output);
@@ -397,7 +397,7 @@ class DeployCommand extends ContainerAwareCommand
             $this->envConfig["ssh_user"],
             $this->envConfig["ssh_host"],
             $this->envConfig["ssh_port"],
-            $this->envConfig["webroot"],
+            $this->envConfig["remote_app_dir"],
             addslashes($command)
         );
 

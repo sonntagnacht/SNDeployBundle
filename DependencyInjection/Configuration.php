@@ -33,7 +33,7 @@ class Configuration implements ConfigurationInterface
                             ->scalarNode('ssh_host')->end()
                             ->integerNode('ssh_port')->defaultValue(22)->end()
                             ->scalarNode('ssh_user')->end()
-                            ->scalarNode('webroot')->end()
+                            ->scalarNode('remote_app_dir')->end()
                             ->arrayNode('exclude')
                                 ->prototype('scalar')->end()
                                 ->end()

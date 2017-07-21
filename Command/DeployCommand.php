@@ -57,8 +57,7 @@ class DeployCommand extends ContainerAwareCommand
             ->addOption('hotfix',
                 null,
                 InputOption::VALUE_NONE,
-                'Skips semver checks to perform a hotfix quick\'n\'dirty')
-            ->addOption('skip-db', null, InputOption::VALUE_NONE, 'Skips db upgrades');
+                'Skips semver checks to perform a hotfix quick\'n\'dirty');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -112,10 +111,6 @@ class DeployCommand extends ContainerAwareCommand
         $this->copyRemoteParameters();
         $this->executeRemoteCommand("rm -rf var/cache/*", $this->output);
         $this->remoteCacheClear();
-
-        if (!$skipDB) {
-            $this->upgradeRemoteDatabase($this->output);
-        }
 
         $this->setRemoteVersion();
         $this->postUploadRemoteCommand();

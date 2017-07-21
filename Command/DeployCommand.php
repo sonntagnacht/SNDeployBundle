@@ -86,7 +86,6 @@ class DeployCommand extends ContainerAwareCommand
         $this->input  = $input;
 
         $this->hotfix = $input->getOption('hotfix');
-        $skipDB       = $input->getOption('skip-db');
         $this->env    = $input->getArgument('environment');
         $config       = $this->getContainer()->getParameter('sn_deploy.environments');
 

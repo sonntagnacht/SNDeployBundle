@@ -24,13 +24,15 @@ use vierbergenlars\SemVer\version;
 class DeployCommand extends ContainerAwareCommand
 {
 
-    protected $config = null;
-    protected $envConfig = null;
+    const RSYNC_EXCLUDE = '/tmp/sn-deploy-rsync.exclude';
+
+    protected $config        = null;
+    protected $envConfig     = null;
     protected $env;
     protected $remoteVersion = null;
-    protected $nextVersion = null;
-    protected $remoteParams = true;
-    protected $hotfix = false;
+    protected $nextVersion   = null;
+    protected $remoteParams  = true;
+    protected $hotfix        = false;
     /**
      * @var OutputInterface
      */
@@ -113,7 +115,7 @@ class DeployCommand extends ContainerAwareCommand
         $this->checkRemoteParameters();
         $this->composerInstall();
         $this->cacheClear();
-        $this->createExculdeFile();
+        $this->createExcludeFile();
         $this->preUploadCommand();
 
         CommandHelper::writeHeadline(
@@ -209,17 +211,25 @@ class DeployCommand extends ContainerAwareCommand
         }
     }
 
-    protected function createExculdeFile()
+    protected function createExcludeFile()
     {
         $exclude = array();
         if (!empty($this->envConfig["exclude"])) {
             $exclude = $this->envConfig["exclude"];
         }
 
-        CommandHelper::executeCommand("echo 'app/config/parameters.yml' > /tmp/rsyncexclude.txt", $this->output, false);
+        CommandHelper::executeCommand(
+            sprintf("echo 'app/config/parameters.yml' > %s", self::RSYNC_EXCLUDE),
+            $this->output,
+            false
+        );
 
         foreach ($exclude as $file) {
-            CommandHelper::executeCommand(sprintf("echo '%s' >> /tmp/rsyncexclude.txt", $file), $this->output, false);
+            CommandHelper::executeCommand(
+                sprintf("echo '%s' >> %s", $file, self::RSYNC_EXCLUDE),
+                $this->output,
+                false
+            );
         }
 
     }
@@ -340,9 +350,10 @@ class DeployCommand extends ContainerAwareCommand
     protected function upload($sourceDir)
     {
         $rsyncCommand = sprintf(
-            "rsync --delete --info=progress2 -r --links --exclude-from /tmp/rsyncexclude.txt --rsh='ssh -p %s' %s/ %s@%s:%s",
+            "rsync --delete --info=progress2 -r --links --exclude-from %s --rsh='ssh -p %s' %s/ %s@%s:%s",
             $this->envConfig["ssh_port"],
             $sourceDir,
+            self::RSYNC_EXCLUDE,
             $this->envConfig["ssh_user"],
             $this->envConfig["ssh_host"],
             $this->envConfig["remote_app_dir"]

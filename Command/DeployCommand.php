@@ -9,8 +9,8 @@
 namespace SN\DeployBundle\Command;
 
 
-use SN\ToolboxBundle\Helper\CommandHelper;
 use SN\DeployBundle\Helper\ParametersHelper;
+use SN\ToolboxBundle\Helper\CommandHelper;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -30,6 +30,7 @@ class DeployCommand extends ContainerAwareCommand
     protected $remoteVersion = null;
     protected $nextVersion = null;
     protected $remoteParams = true;
+    protected $hotfix = false;
     /**
      * @var OutputInterface
      */
@@ -41,13 +42,14 @@ class DeployCommand extends ContainerAwareCommand
 
     protected function configure()
     {
+
         $this
             ->setName('sn:deploy')
             ->setDescription('Deploy project to server')
             ->addArgument('environment',
                 null,
                 'environment you watn to deploy',
-                'prod')
+                null)
             ->addOption(
                 'source-dir',
                 null,
@@ -60,17 +62,43 @@ class DeployCommand extends ContainerAwareCommand
                 'Skips semver checks to perform a hotfix quick\'n\'dirty');
     }
 
+    public function stopCommand()
+    {
+        $fs                = new Filesystem();
+        $remote_parameters = sprintf('%s/config/parameters.yml.remote',
+            $this->getContainer()->getParameter("kernel.root_dir"));
+        if ($fs->exists($remote_parameters)) {
+            $fs->remove($remote_parameters);
+        }
+    }
+
+    public function __destruct()
+    {
+        $this->stopCommand();
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+
         $this->output = $output;
         $this->input  = $input;
 
+        $this->hotfix = $input->getOption('hotfix');
+        $skipDB       = $input->getOption('skip-db');
+        $this->env    = $input->getArgument('environment');
+        $config       = $this->getContainer()->getParameter('sn_deploy.environments');
 
-        $hotfix    = $input->getOption('hotfix');
-        $skipDB    = $input->getOption('skip-db');
-        $this->env = $input->getArgument('environment');
+        if ($this->env == null) {
+            if (!key_exists("default", $this->getContainer()->getParameter('sn_deploy'))) {
+                throw new \Exception(sprintf("Missing argument"));
+            }
 
-        $config = $this->getContainer()->getParameter('sn_deploy.environments');
+            $this->env = $this->getContainer()->getParameter('sn_deploy')["default"];
+            if (!$this->env) {
+                throw new \Exception(sprintf("Missing argument"));
+            }
+        }
+
 
         if (!key_exists($this->env, $config)) {
             throw new \Exception(sprintf("Configuration for %s not found.", $this->env));
@@ -109,7 +137,8 @@ class DeployCommand extends ContainerAwareCommand
         $this->preUploadRemoteCommand();
         $this->upload($sourceDir);
         $this->copyRemoteParameters();
-        $this->executeRemoteCommand("rm -rf var/cache/*", $this->output);
+        $this->executeRemoteCommand("rm -rf var/cache/*", false);
+        $this->executeRemoteCommand("rm -rf app/cache/*", false);
         $this->remoteCacheClear();
 
         $this->setRemoteVersion();
@@ -117,7 +146,6 @@ class DeployCommand extends ContainerAwareCommand
 
         $this->remoteCacheClear();
         $this->postUploadCommand();
-
     }
 
     protected function preUploadRemoteCommand()
@@ -142,15 +170,15 @@ class DeployCommand extends ContainerAwareCommand
 
     protected function setRemoteVersion()
     {
-        $commit  = $this->getContainer()->get('sn_deploy.twig')->getCommit();
-        $commitLong  = $this->getContainer()->get('sn_deploy.twig')->getCommit(false);
-        $version = $this->nextVersion->getVersion();
+        $commit     = $this->getContainer()->get('sn_deploy.twig')->getCommit();
+        $commitLong = $this->getContainer()->get('sn_deploy.twig')->getCommit(false);
+        $version    = $this->nextVersion->getVersion();
 
         $json = array(
-            "commit"    => $commit,
-            "commit_long"    => $commitLong,
-            "version"   => $version,
-            "timestamp" => time(),
+            "commit"      => $commit,
+            "commit_long" => $commitLong,
+            "version"     => $version,
+            "timestamp"   => time(),
         );
 
         $this->executeRemoteCommand(
@@ -160,7 +188,7 @@ class DeployCommand extends ContainerAwareCommand
 
     protected function copyRemoteParameters()
     {
-        $this->executeRemoteCommand("mv app/config/parameters.yml.remote app/config/parameters.yml");
+        $this->executeRemoteCommand("mv app/config/parameters.yml.remote app/config/parameters.yml", false);
     }
 
     protected function cacheClear()
@@ -168,7 +196,7 @@ class DeployCommand extends ContainerAwareCommand
         $cacheClear = $this->envConfig["cache_clear"];
 
         foreach ($cacheClear as $cmd) {
-            CommandHelper::executeCommand($cmd, $this->output, false);
+            CommandHelper::executeCommand($cmd);
         }
     }
 
@@ -200,7 +228,7 @@ class DeployCommand extends ContainerAwareCommand
     {
 
         if ($this->remoteVersion === null) {
-            $deployJSON = json_decode($this->executeRemoteCommand("cat deploy.json", $this->output), true);
+            $deployJSON = json_decode($this->executeRemoteCommand("cat deploy.json", false), true);
             if (empty($deployJSON["version"])) {
                 $this->remoteVersion = new version("0.0.0");
             } else {
@@ -214,29 +242,30 @@ class DeployCommand extends ContainerAwareCommand
     protected function getNextVersion()
     {
         if ($this->nextVersion === null) {
-            $nextVersionNumber = CommandHelper::executeCommand("git describe --tags", $this->output);
+            $nextVersionNumber = CommandHelper::executeCommand("git describe --tags");
             $this->nextVersion = new version($nextVersionNumber);
         }
 
         return $this->nextVersion;
     }
 
+    protected function getBranch()
+    {
+        return CommandHelper::executeCommand("git symbolic-ref --short HEAD");
+
+    }
+
     protected function checkVersion()
     {
-        $hotfix = $this->input->getOption('hotfix');
-        $output = $this->output;
-        $branch = CommandHelper::executeCommand("git symbolic-ref --short HEAD", $this->output);
 
+        $output = $this->output;
 
         $currentVersion = $this->getRemoteVersion();
+        $branch         = $this->getBranch();
         //check current git tag for next version number
         $nextVersion = $this->getNextVersion();
 
-        if ($this->envConfig['check_version']) {
-            return;
-        }
-
-        if ($hotfix) {
+        if (false === isset($this->envConfig['check_version']) || true === $this->hotfix) {
             CommandHelper::writeHeadline(
                 $output,
                 sprintf(
@@ -247,9 +276,13 @@ class DeployCommand extends ContainerAwareCommand
                 ),
                 '<question>%s</question>'
             );
+
+            CommandHelper::countdown($this->output, 5);
+
+            return;
         }
 
-        if (substr_count($nextVersion->getVersion(), '-') > 1 && !$hotfix) {
+        if (substr_count($nextVersion->getVersion(), '-') > 1) {
             throw new AccessDeniedException(
                 sprintf("cannot deploy untagged revision %s", $nextVersion->getVersion())
             );
@@ -257,16 +290,14 @@ class DeployCommand extends ContainerAwareCommand
 
         //check for valid version
         if (version::cmp($nextVersion, ">", $currentVersion) !== true) {
-            if (!$hotfix) {
-                throw new AccessDeniedException(
-                    sprintf(
-                        "cannot deploy local version [%s]. The version [%s] on the server [%s] is more up-to-date.",
-                        $nextVersion,
-                        $currentVersion,
-                        $this->envConfig["host"]
-                    )
-                );
-            }
+            throw new AccessDeniedException(
+                sprintf(
+                    "cannot deploy local version [%s]. The version [%s] on the server [%s] is more up-to-date.",
+                    $nextVersion,
+                    $currentVersion,
+                    $this->envConfig["host"]
+                )
+            );
         }
     }
 
@@ -275,7 +306,7 @@ class DeployCommand extends ContainerAwareCommand
         $parameterHelper = new ParametersHelper($this->input, $this->output, $this->getHelper('question'));
 
         // Download paramters.yml -> parameters.yml.remote
-        $remoteParams = $this->executeRemoteCommand("cat app/config/parameters.yml", $this->output, false);
+        $remoteParams = $this->executeRemoteCommand("cat app/config/parameters.yml", false);
         $fs           = new Filesystem();
         $fs->dumpFile('app/config/parameters.yml.remote', $remoteParams);
 
@@ -288,11 +319,13 @@ class DeployCommand extends ContainerAwareCommand
 
     protected function checkBranch()
     {
-
+        if (null === $this->envConfig['branch'] || true === $this->hotfix) {
+            return;
+        }
         CommandHelper::writeHeadline($this->output, "performing preflight checks");
 
         $branch = CommandHelper::executeCommand("git symbolic-ref --short HEAD", $this->output);
-        if (!$this->input->getOption('hotfix') && $this->envConfig['branch'] !== null && $branch !== $this->envConfig['branch']) {
+        if ($branch !== $this->envConfig['branch']) {
             $this->resetBranch($this->output);
             throw new \Exception(sprintf("can only deploy when on branch [%s]",
                 $this->envConfig['branch']));
@@ -307,7 +340,8 @@ class DeployCommand extends ContainerAwareCommand
     protected function upload($sourceDir)
     {
         $rsyncCommand = sprintf(
-            "rsync --delete --info=progress2 -r --links --exclude-from /tmp/rsyncexclude.txt --rsh='ssh' %s/ %s@%s:%s",
+            "rsync --delete --info=progress2 -r --links --exclude-from /tmp/rsyncexclude.txt --rsh='ssh -p %s' %s/ %s@%s:%s",
+            $this->envConfig["port"],
             $sourceDir,
             $this->envConfig["user"],
             $this->envConfig["host"],
@@ -337,18 +371,16 @@ class DeployCommand extends ContainerAwareCommand
         }
     }
 
-    public function upgradeRemoteDatabase(OutputInterface $output)
+    protected function upgradeRemoteDatabase(OutputInterface $output)
     {
         //todo:env in doctrine
         //migrate db
         $this->executeRemoteCommand(
-            "php bin/console doctrine:migrations:migrate --env=prod",
-            $output
+            "php bin/console doctrine:migrations:migrate --env=prod"
         );
         //update db schema
         $this->executeRemoteCommand(
-            "php bin/console doctrine:schema:update --dump-sql --force --env=prod",
-            $output
+            "php bin/console doctrine:schema:update --dump-sql --force --env=prod"
         );
     }
 
@@ -361,21 +393,27 @@ class DeployCommand extends ContainerAwareCommand
     public function executeRemoteCommand($command, $write = true)
     {
         $cmd = sprintf(
-            'ssh %s@%s "cd %s; %s"',
+            'ssh %s@%s -p%s "cd %s; %s"',
             $this->envConfig["user"],
             $this->envConfig["host"],
+            $this->envConfig["port"],
             $this->envConfig["webroot"],
             addslashes($command)
         );
 
-        return CommandHelper::executeCommand($cmd, $this->output, $write);
+        if ($write) {
+            return CommandHelper::executeCommand($cmd, $this->output, $write);
+        } else {
+            return CommandHelper::executeCommand($cmd);
+        }
+
     }
 
 
     public function composerInstall()
     {
         $output = $this->output;
-        CommandHelper::executeCommand(sprintf("%s install --optimize-autoloader", $this->config["composer"]), $output);
+        CommandHelper::executeCommand(sprintf("%s install", $this->config["composer"]), $output);
     }
 
     public function checkRepoClean()

@@ -1,6 +1,6 @@
 # SNDeployBundle
 ## Installation
-    composer require sonntagnacht/deploy-bundle "master-dev"
+    composer require sonntagnacht/deploy-bundle 1.0.0-beta.4
 
 ## Configuration
 
@@ -10,8 +10,8 @@ app/config.yml:
 ```yaml
 sn_deploy:
     composer: "/usr/bin/composer"
+    default: "prod"                     # default null
     environments:
-        # environments can be prod, test and dev 
         prod:
             # host address of webserver
             host: example.com

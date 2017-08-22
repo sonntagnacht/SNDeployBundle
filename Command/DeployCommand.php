@@ -155,7 +155,7 @@ class DeployCommand extends ContainerAwareCommand
             return;
         }
         foreach ($this->envConfig["pre_upload_remote"] as $cmd) {
-            $this->executeRemoteCommand($cmd, false);
+            $this->executeRemoteCommand($cmd, true);
         }
     }
 
@@ -165,7 +165,7 @@ class DeployCommand extends ContainerAwareCommand
             return;
         }
         foreach ($this->envConfig["post_upload_remote"] as $cmd) {
-            $this->executeRemoteCommand($cmd, false);
+            $this->executeRemoteCommand($cmd, true);
         }
     }
 

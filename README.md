@@ -1,6 +1,6 @@
 # SNDeployBundle
 ## Installation
-    composer require sonntagnacht/deploy-bundle 1.0.0-rc.2
+    $ composer require sonntagnacht/deploy-bundle 1.0.1
 
 ## Configuration
 
@@ -45,7 +45,7 @@ To get version informations in twig, you have to add `sn_deploy.twig` service in
 
     twig:
         globals:
-            sn_deploy: "sn_deploy.twig"
+            sn_deploy: "@sn_deploy.twig"
 
 ## Usages
 

@@ -19,26 +19,34 @@ class Version
     private $settings;
     private $root;
 
-    public function __construct($settings, $root)
+    public function __construct($root)
     {
-        $this->settings = $settings;
         $this->root     = $root;
-    }
+        $this->settings = array(
+            "version"     => "__DEV__",
+            "commit"      => "",
+            "commit_long" => "",
+            "timestamp"   => time()
+        );
 
-    /**
-     * @return bool|array
-     */
-    protected function getSettings()
-    {
         $deploy_file = sprintf("%s/../deploy.json", $this->root);
         if (file_exists($deploy_file)) {
-            $json = file_get_contents(sprintf($deploy_file, $this->root));
-            $json = json_decode($json, true);
+            $json           = file_get_contents($deploy_file);
+            $this->settings = json_decode($json, true);
+        } else {
+            $commitShort = sprintf("git rev-parse --short HEAD");
+            $commitLong  = sprintf("git rev-parse HEAD");
 
-            return $json;
+            $commit = CommandHelper::executeCommand($commitShort);
+            if (strpos($commit, "command not found") === false) {
+                $this->settings["commit"] = $commit;
+            }
+
+            $commit = CommandHelper::executeCommand($commitLong);
+            if (strpos($commit, "command not found") === false) {
+                $this->settings["commit_long"] = $commit;
+            }
         }
-
-        return false;
     }
 
     /**
@@ -46,14 +54,7 @@ class Version
      */
     public function getVersion()
     {
-
-        $settings = $this->getSettings();
-        if ($settings === false) {
-            return "__DEV__";
-        }
-
-        return $settings["version"];
-
+        return $this->settings["version"];
     }
 
     /**
@@ -62,29 +63,10 @@ class Version
      */
     public function getCommit($short = true)
     {
-        // Will try first `git reb-parse HEAD`
         if ($short) {
-            $cmd = sprintf("git rev-parse --short HEAD");
+            return $this->settings["commit"];
         } else {
-            $cmd = sprintf("git rev-parse HEAD");
-        }
-        $commit = CommandHelper::executeCommand($cmd);
-
-        if (strpos($commit, "command not found") === false) {
-            return $commit;
-        }
-
-        // If git is not installed, it will try to get deploy.json informations
-        $settings = $this->getSettings();
-        
-        if ($settings === false) {
-            return null;
-        }
-
-        if ($short) {
-            return $settings["commit"];
-        } else {
-            return $settings["commit_long"];
+            return $this->settings["commit_long"];
         }
 
     }
@@ -94,13 +76,8 @@ class Version
      */
     public function getTime()
     {
-        $settings = $this->getSettings();
-        if ($settings === false) {
-            return null;
-        }
-
         $date = new \DateTime();
-        $date->setTimestamp($settings["timestamp"]);
+        $date->setTimestamp($this->settings["timestamp"]);
 
         return $date;
     }

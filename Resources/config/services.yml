@@ -1,7 +1,7 @@
 services:
     sn_deploy.twig:
         class: SN\DeployBundle\Services\Version
-        arguments: ['%sn_deploy%', '%kernel.root_dir%']
+        arguments: ['%kernel.root_dir%']
         lazy: true
     sn_deploy.request_collector:
         class: SN\DeployBundle\DataCollector\RequestCollector

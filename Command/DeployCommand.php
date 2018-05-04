@@ -197,7 +197,7 @@ class DeployCommand extends ContainerAwareCommand
         $cacheClear = $this->envConfig["cache_clear"];
 
         foreach ($cacheClear as $cmd) {
-            CommandHelper::executeCommand($cmd);
+            CommandHelper::execute($cmd);
         }
     }
 
@@ -217,17 +217,15 @@ class DeployCommand extends ContainerAwareCommand
             $exclude = $this->envConfig["exclude"];
         }
 
-        CommandHelper::executeCommand(
+        CommandHelper::execute(
             sprintf("echo 'app/config/parameters.yml' > %s", self::RSYNC_EXCLUDE),
-            $this->output,
-            false
+            ['output' => $this->output, 'print_output' => true]
         );
 
         foreach ($exclude as $file) {
-            CommandHelper::executeCommand(
+            CommandHelper::execute(
                 sprintf("echo '%s' >> %s", $file, self::RSYNC_EXCLUDE),
-                $this->output,
-                false
+                ['output' => $this->output, 'print_output' => true]
             );
         }
 
@@ -251,7 +249,7 @@ class DeployCommand extends ContainerAwareCommand
     protected function getNextVersion()
     {
         if ($this->nextVersion === null) {
-            $nextVersionNumber = CommandHelper::executeCommand("git describe --tags");
+            $nextVersionNumber = CommandHelper::execute("git describe --tags");
             $this->nextVersion = new version($nextVersionNumber);
         }
 
@@ -260,7 +258,7 @@ class DeployCommand extends ContainerAwareCommand
 
     protected function getBranch()
     {
-        return CommandHelper::executeCommand("git symbolic-ref --short HEAD");
+        return CommandHelper::execute("git symbolic-ref --short HEAD");
 
     }
 
@@ -336,17 +334,12 @@ class DeployCommand extends ContainerAwareCommand
         }
         CommandHelper::writeHeadline($this->output, "performing preflight checks");
 
-        $branch = CommandHelper::executeCommand("git symbolic-ref --short HEAD", $this->output);
+        $branch = CommandHelper::execute("git symbolic-ref --short HEAD", ['output' => $this->output, 'print_output' => true]);
         if ($branch !== $this->envConfig['branch']) {
-            $this->resetBranch($this->output);
-            throw new DeployException(sprintf("can only deploy when on branch [%s]",
-                $this->envConfig['branch']));
+            throw new DeployException(
+                sprintf("can only deploy when on branch [%s]", $this->envConfig['branch'])
+            );
         }
-    }
-
-    protected function resetBranch(OutputInterface $output)
-    {
-        CommandHelper::executeCommand(sprintf("%s install", $this->config["composer"]), $output, false);
     }
 
     protected function upload($sourceDir)
@@ -361,7 +354,7 @@ class DeployCommand extends ContainerAwareCommand
             $this->envConfig["remote_app_dir"]
         );
 
-        CommandHelper::executeCommand($rsyncCommand, $this->output);
+        CommandHelper::execute($rsyncCommand, ['output' => $this->output, 'print_output' => true]);
     }
 
     protected function preUploadCommand()
@@ -370,7 +363,7 @@ class DeployCommand extends ContainerAwareCommand
             return;
         }
         foreach ($this->envConfig["pre_upload"] as $cmd) {
-            CommandHelper::executeCommand($cmd, $this->output);
+            CommandHelper::execute($cmd, ['output' => $this->output, 'print_output' => true]);
         }
     }
 
@@ -380,7 +373,7 @@ class DeployCommand extends ContainerAwareCommand
             return;
         }
         foreach ($this->envConfig["post_upload"] as $cmd) {
-            CommandHelper::executeCommand($cmd, $this->output);
+            CommandHelper::execute($cmd, ['output' => $this->output, 'print_output' => true]);
         }
     }
 
@@ -401,9 +394,9 @@ class DeployCommand extends ContainerAwareCommand
         );
 
         if ($write) {
-            return CommandHelper::executeCommand($cmd, $this->output, $write);
+            return CommandHelper::execute($cmd, ['output' => $this->output, 'print_output' => $write]);
         } else {
-            return CommandHelper::executeCommand($cmd);
+            return CommandHelper::execute($cmd);
         }
 
     }
@@ -412,7 +405,7 @@ class DeployCommand extends ContainerAwareCommand
     public function composerInstall()
     {
         $output = $this->output;
-        CommandHelper::executeCommand(sprintf("%s install", $this->config["composer"]), $output);
+        CommandHelper::execute(sprintf("%s install", $this->config["composer"]), ['output' => $this->output, 'print_output' => true]);
     }
 
     public function checkRepoClean()
@@ -421,7 +414,7 @@ class DeployCommand extends ContainerAwareCommand
         $input  = $this->input;
 
         CommandHelper::writeHeadline($output, "checking git status");
-        CommandHelper::executeCommand("git status", $output);
+        CommandHelper::execute("git status", ['output' => $this->output, 'print_output' => true]);
         $output->writeln("");
         $helper   = $this->getHelper('question');
         $question = new ConfirmationQuestion('<question>Does that look OK to you? (Y/n)</question>', true);
@@ -451,7 +444,7 @@ class DeployCommand extends ContainerAwareCommand
             $files->mkdir($stageDir);
         } //otherwise clear it
         else {
-            CommandHelper::executeCommand(sprintf("rm -rf %s*", $stageDir), $output);
+            CommandHelper::execute(sprintf("rm -rf %s*", $stageDir), ['output' => $this->output, 'print_output' => true]);
         }
 
         $output->writeln(sprintf('Copying <info>%s</info> to <comment>%s</comment>', $webDir, $stageDir));

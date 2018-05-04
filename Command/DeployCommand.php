@@ -25,6 +25,7 @@ class DeployCommand extends ContainerAwareCommand
 {
 
     const RSYNC_EXCLUDE = '/tmp/sn-deploy-rsync.exclude';
+    const RSYNC_INCLUDE = '/tmp/sn-deploy-rsync.include';
 
     protected $config        = null;
     protected $envConfig     = null;
@@ -61,7 +62,12 @@ class DeployCommand extends ContainerAwareCommand
             ->addOption('hotfix',
                 null,
                 InputOption::VALUE_NONE,
-                'Skips semver checks to perform a hotfix quick\'n\'dirty');
+                'Skips semver checks to perform a hotfix quick\'n\'dirty')
+            ->addOption('skip-parameter-check',
+                null,
+                InputOption::VALUE_NONE,
+                'If set, no parameters.yml options will be compared'
+            );
     }
 
     public function stopCommand()
@@ -111,9 +117,12 @@ class DeployCommand extends ContainerAwareCommand
         $this->checkRepoClean();
         $this->checkBranch();
         $this->checkVersion();
-        $this->checkRemoteParameters();
+        if(false === $input->getOption('skip-parameter-check')) {
+            $this->checkRemoteParameters();
+        }
         $this->composerInstall();
         $this->cacheClear();
+        $this->createIncludeFile();
         $this->createExcludeFile();
         $this->preUploadCommand();
 
@@ -210,6 +219,26 @@ class DeployCommand extends ContainerAwareCommand
         }
     }
 
+    protected function createIncludeFile()
+    {
+        $include = array();
+        if (!empty($this->envConfig["include"])) {
+            $include = $this->envConfig["include"];
+        }
+
+        CommandHelper::execute(
+            sprintf("touch %s", self::RSYNC_INCLUDE),
+            ['output' => $this->output, 'print_output' => true]
+        );
+
+        foreach ($include as $file) {
+            CommandHelper::execute(
+                sprintf("echo '%s' >> %s", $file, self::RSYNC_INCLUDE),
+                ['output' => $this->output, 'print_output' => true]
+            );
+        }
+    }
+
     protected function createExcludeFile()
     {
         $exclude = array();
@@ -228,7 +257,6 @@ class DeployCommand extends ContainerAwareCommand
                 ['output' => $this->output, 'print_output' => true]
             );
         }
-
     }
 
     protected function getRemoteVersion()
@@ -334,7 +362,8 @@ class DeployCommand extends ContainerAwareCommand
         }
         CommandHelper::writeHeadline($this->output, "performing preflight checks");
 
-        $branch = CommandHelper::execute("git symbolic-ref --short HEAD", ['output' => $this->output, 'print_output' => true]);
+        $branch = CommandHelper::execute("git symbolic-ref --short HEAD",
+            ['output' => $this->output, 'print_output' => true]);
         if ($branch !== $this->envConfig['branch']) {
             throw new DeployException(
                 sprintf("can only deploy when on branch [%s]", $this->envConfig['branch'])
@@ -345,7 +374,8 @@ class DeployCommand extends ContainerAwareCommand
     protected function upload($sourceDir)
     {
         $rsyncCommand = sprintf(
-            "rsync --delete --info=progress2 -r --links --exclude-from %s --rsh='ssh -p %s' %s/ %s@%s:%s",
+            "rsync --delete --info=progress2 -r --links --include-from %s --exclude-from %s --rsh='ssh -p %s' %s/ %s@%s:%s",
+            self::RSYNC_INCLUDE,
             self::RSYNC_EXCLUDE,
             $this->envConfig["ssh_port"],
             $sourceDir,
@@ -405,7 +435,8 @@ class DeployCommand extends ContainerAwareCommand
     public function composerInstall()
     {
         $output = $this->output;
-        CommandHelper::execute(sprintf("%s install", $this->config["composer"]), ['output' => $this->output, 'print_output' => true]);
+        CommandHelper::execute(sprintf("%s install", $this->config["composer"]),
+            ['output' => $this->output, 'print_output' => true]);
     }
 
     public function checkRepoClean()
@@ -444,7 +475,8 @@ class DeployCommand extends ContainerAwareCommand
             $files->mkdir($stageDir);
         } //otherwise clear it
         else {
-            CommandHelper::execute(sprintf("rm -rf %s*", $stageDir), ['output' => $this->output, 'print_output' => true]);
+            CommandHelper::execute(sprintf("rm -rf %s*", $stageDir),
+                ['output' => $this->output, 'print_output' => true]);
         }
 
         $output->writeln(sprintf('Copying <info>%s</info> to <comment>%s</comment>', $webDir, $stageDir));

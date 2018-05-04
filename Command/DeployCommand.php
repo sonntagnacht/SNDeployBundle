@@ -9,6 +9,7 @@
 namespace SN\DeployBundle\Command;
 
 
+use SN\DeployBundle\Exception\DeployException;
 use SN\DeployBundle\Helper\ParametersHelper;
 use SN\ToolboxBundle\Helper\CommandHelper;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
@@ -17,7 +18,6 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\ConfirmationQuestion;
 use Symfony\Component\Filesystem\Filesystem;
-use Symfony\Component\HttpFoundation\File\Exception\AccessDeniedException;
 use Symfony\Component\HttpKernel\Kernel;
 use vierbergenlars\SemVer\version;
 
@@ -91,18 +91,18 @@ class DeployCommand extends ContainerAwareCommand
 
         if ($this->env == null) {
             if (!key_exists("default_environment", $this->getContainer()->getParameter('sn_deploy'))) {
-                throw new \Exception(sprintf("Missing argument"));
+                throw new DeployException(sprintf("Missing argument"));
             }
 
             $this->env = $this->getContainer()->getParameter('sn_deploy')["default_environment"];
             if (!$this->env) {
-                throw new \Exception(sprintf("Missing argument"));
+                throw new DeployException(sprintf("Missing argument"));
             }
         }
 
 
         if (!key_exists($this->env, $config)) {
-            throw new \Exception(sprintf("Configuration for %s not found.", $this->env));
+            throw new DeployException(sprintf("Configuration for %s not found.", $this->env));
         }
 
         $this->envConfig = $config[$this->env];
@@ -274,7 +274,10 @@ class DeployCommand extends ContainerAwareCommand
         //check current git tag for next version number
         $nextVersion = $this->getNextVersion();
 
-        if (false === isset($this->envConfig['check_version']) || true === $this->hotfix) {
+        if (
+            (isset($this->envConfig['check_version']) && false === $this->envConfig['check_version']) ||
+            true === $this->hotfix
+        ) {
             CommandHelper::writeHeadline(
                 $output,
                 sprintf(
@@ -292,14 +295,14 @@ class DeployCommand extends ContainerAwareCommand
         }
 
         if (substr_count($nextVersion->getVersion(), '-') > 1) {
-            throw new AccessDeniedException(
+            throw new DeployException(
                 sprintf("cannot deploy untagged revision %s", $nextVersion->getVersion())
             );
         }
 
         //check for valid version
         if (version::cmp($nextVersion, ">", $currentVersion) !== true) {
-            throw new AccessDeniedException(
+            throw new DeployException(
                 sprintf(
                     "cannot deploy local version [%s]. The version [%s] on the server [%s] is more up-to-date.",
                     $nextVersion,
@@ -336,7 +339,7 @@ class DeployCommand extends ContainerAwareCommand
         $branch = CommandHelper::executeCommand("git symbolic-ref --short HEAD", $this->output);
         if ($branch !== $this->envConfig['branch']) {
             $this->resetBranch($this->output);
-            throw new \Exception(sprintf("can only deploy when on branch [%s]",
+            throw new DeployException(sprintf("can only deploy when on branch [%s]",
                 $this->envConfig['branch']));
         }
     }
@@ -424,7 +427,7 @@ class DeployCommand extends ContainerAwareCommand
         $question = new ConfirmationQuestion('<question>Does that look OK to you? (Y/n)</question>', true);
 
         if (!$helper->ask($input, $output, $question)) {
-            throw new \Exception(sprintf("better fix it then..."));
+            throw new DeployException(sprintf("better fix it then..."));
         }
 
     }

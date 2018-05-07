@@ -67,6 +67,22 @@ class DeployCommand extends ContainerAwareCommand
                 null,
                 InputOption::VALUE_NONE,
                 'If set, no parameters.yml options will be compared'
+            )
+            ->addOption('skip-repo-clean-check',
+                null,
+                InputOption::VALUE_NONE,
+                'If set, no <info>git status</info> check will be made'
+            )
+            ->addOption('countdown',
+                null,
+                InputOption::VALUE_OPTIONAL,
+                'The time in seconds for a countdown, can be disabled with 0',
+                10
+            )
+            ->addOption('confirm-upload',
+                null,
+                InputOption::VALUE_NONE,
+                'If set, you will be promptet for the upload to start instead of a countdown'
             );
     }
 
@@ -114,10 +130,12 @@ class DeployCommand extends ContainerAwareCommand
         $this->envConfig = $config[$this->env];
         $this->config    = $this->getContainer()->getParameter('sn_deploy');
 
-        $this->checkRepoClean();
+        if (false === $input->getOption('skip-repo-clean-check')) {
+            $this->checkRepoClean();
+        }
         $this->checkBranch();
         $this->checkVersion();
-        if(false === $input->getOption('skip-parameter-check')) {
+        if (false === $input->getOption('skip-parameter-check')) {
             $this->checkRemoteParameters();
         }
         $this->composerInstall();
@@ -136,7 +154,16 @@ class DeployCommand extends ContainerAwareCommand
             )
         );
 
-        CommandHelper::countdown($output, 10);
+        if ($input->getOption('confirm-upload')) {
+            $helper   = $this->getHelper('question');
+            $question = new ConfirmationQuestion('<question>Proceed with upload? (Y/n)</question>', true);
+
+            if (!$helper->ask($input, $output, $question)) {
+                throw new \Exception('Deployment aborted.');
+            }
+        } else {
+            CommandHelper::countdown($output, intval($input->getOption('countdown')));
+        }
 
         if ($input->getOption('source-dir') == null) {
             $sourceDir = realpath(sprintf("%s/..", $this->getContainer()->getParameter("kernel.root_dir")));
@@ -374,7 +401,7 @@ class DeployCommand extends ContainerAwareCommand
     protected function upload($sourceDir)
     {
         $rsyncCommand = sprintf(
-            "rsync --delete --info=progress2 -r --links --include-from %s --exclude-from %s --rsh='ssh -p %s' %s/ %s@%s:%s",
+            "rsync --delete --info=progress2 -r -z --links --include-from=%s --exclude-from=%s --rsh='ssh -p %s' %s/ %s@%s:%s",
             self::RSYNC_INCLUDE,
             self::RSYNC_EXCLUDE,
             $this->envConfig["ssh_port"],

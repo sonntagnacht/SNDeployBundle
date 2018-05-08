@@ -25,6 +25,11 @@ sn_deploy:
             branch: "production"                    # default null
             # repository version has to be newer then remote version - uses semver
             check_version: true                     # default true
+            # customize the rsync transfer settings, parameters below are the default ones
+            rsync_options: "--info=progress2 --delete -a"
+            # include these files & direcotires, creates a rsync.inlcude file in /tmp/sn-deploy-rsync.include
+            # which is used for deployment
+            include: []
             # exclude these files & directories, creates a rsync.exclude file in /tmp/sn-deploy-rsync.exclude
             # which is used for deployment
             exclude: []     

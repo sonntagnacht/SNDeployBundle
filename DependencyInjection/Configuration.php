@@ -34,6 +34,7 @@ class Configuration implements ConfigurationInterface
                             ->integerNode('ssh_port')->defaultValue(22)->end()
                             ->scalarNode('ssh_user')->end()
                             ->scalarNode('remote_app_dir')->end()
+                            ->scalarNode('rsync_options')->defaultValue('--info=progress2 --delete -a')->end()
                             ->arrayNode('include')
                                 ->prototype('scalar')->end()
                                 ->end()

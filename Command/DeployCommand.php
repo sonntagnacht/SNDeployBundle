@@ -43,6 +43,11 @@ class DeployCommand extends ContainerAwareCommand
      */
     protected $input;
 
+    /**
+     * @var array
+     */
+    protected $version = array();
+
     protected function configure()
     {
 
@@ -138,6 +143,18 @@ class DeployCommand extends ContainerAwareCommand
         if (false === $input->getOption('skip-parameter-check')) {
             $this->checkRemoteParameters();
         }
+
+        $commit     = $this->getContainer()->get('sn_deploy.twig')->getCommit();
+        $commitLong = $this->getContainer()->get('sn_deploy.twig')->getCommit(false);
+        $version    = $this->nextVersion->getVersion();
+
+        $this->version = array(
+            "commit"      => $commit,
+            "commit_long" => $commitLong,
+            "version"     => $version,
+            "timestamp"   => time(),
+        );
+
         $this->composerInstall();
         $this->cacheClear();
         $this->createIncludeFile();
@@ -207,19 +224,10 @@ class DeployCommand extends ContainerAwareCommand
 
     protected function setRemoteVersion()
     {
-        $commit     = $this->getContainer()->get('sn_deploy.twig')->getCommit();
-        $commitLong = $this->getContainer()->get('sn_deploy.twig')->getCommit(false);
-        $version    = $this->nextVersion->getVersion();
-
-        $json = array(
-            "commit"      => $commit,
-            "commit_long" => $commitLong,
-            "version"     => $version,
-            "timestamp"   => time(),
-        );
+        $this->version['timestamp'] = time();
 
         $this->executeRemoteCommand(
-            sprintf("echo \"%s\" > deploy.json", addslashes(json_encode($json))),
+            sprintf("echo \"%s\" > deploy.json", addslashes(json_encode($this->version))),
             false);
     }
 
@@ -228,6 +236,10 @@ class DeployCommand extends ContainerAwareCommand
         $this->executeRemoteCommand("mv app/config/parameters.yml.remote app/config/parameters.yml", false);
     }
 
+    /**
+     * @deprecated since symfony 3.4
+     * see https://github.com/symfony/symfony/issues/25280
+     */
     protected function cacheClear()
     {
         $cacheClear = $this->envConfig["cache_clear"];

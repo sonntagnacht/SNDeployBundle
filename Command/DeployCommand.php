@@ -200,6 +200,10 @@ class DeployCommand extends ContainerAwareCommand
 
         $this->remoteCacheClear();
         $this->postUploadCommand();
+
+        $output->writeln('');
+        $output->writeln(sprintf('<info>done.</info>'));
+        $output->writeln('');
     }
 
     protected function preUploadRemoteCommand()
